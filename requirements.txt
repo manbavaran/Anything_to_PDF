@@ -1,7 +1,6 @@
 PyQt6
 PyPDF2
-img2pdf
 pillow
 simple-hwp2pdf[office]
 comtypes; platform_system == "Windows"
-pyinstaller
+cx_Freeze
