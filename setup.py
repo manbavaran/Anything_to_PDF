@@ -12,7 +12,8 @@ build_exe_options = {
         "PIL",
         "PyPDF2",
         "comtypes",
-        "simple_hwp2pdf",
+        "pythoncom",
+        "win32com",
     ],
     "excludes": [
         "PyQt6.QtBluetooth",

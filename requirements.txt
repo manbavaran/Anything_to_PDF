@@ -1,6 +1,7 @@
-PyQt6
-PyPDF2
-pillow
-simple-hwp2pdf[office]
-comtypes; platform_system == "Windows"
-cx_Freeze
+PyQt6==6.11.0
+PyPDF2==3.0.1
+pillow==12.3.0
+comtypes==1.4.16; platform_system == "Windows"
+pywin32==312; platform_system == "Windows"
+cx_Freeze==8.6.4
+pyinstaller==6.21.0

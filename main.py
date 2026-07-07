@@ -20,27 +20,16 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from converter import PDFConverterLogic
+from converter import PDFConverterLogic, SUPPORTED_EXTS
 
 
 APP_TITLE = "Anything to PDF Converter & Merger"
 INSTRUCTIONS = (
     "Drag files here or click Add Files.\n"
-    "Reorder the list by dragging items before creating the merged PDF."
+    "Files are sorted by name first. Drag or use Move Up/Down to set the final PDF order."
 )
-SUPPORTED_LABEL = "Supported: PDF, PNG, JPG, JPEG, HWP, HWPX, DOC, DOCX, PPT, PPTX"
-SUPPORTED_EXTS = [
-    ".png",
-    ".jpg",
-    ".jpeg",
-    ".hwp",
-    ".hwpx",
-    ".ppt",
-    ".pptx",
-    ".doc",
-    ".docx",
-    ".pdf",
-]
+SUPPORTED_LABEL = "Supported: PDF, PNG, JPG, JPEG, WEBP, HWP, HWPX, DOC, DOCX, PPT, PPTX"
+PATH_ROLE = Qt.ItemDataRole.UserRole
 
 
 def run_self_test():
@@ -53,22 +42,61 @@ def run_self_test():
         temp_path = Path(temp_dir)
         first = temp_path / "first.png"
         second = temp_path / "second.jpg"
+        third = temp_path / "third.webp"
         output = temp_path / "merged.pdf"
 
         Image.new("RGBA", (120, 120), (37, 99, 235, 180)).save(first)
         Image.new("RGB", (120, 120), (16, 185, 129)).save(second)
+        Image.new("RGB", (120, 120), (244, 114, 182)).save(third)
 
         logic = PDFConverterLogic()
         generated = []
         try:
             generated.append(logic.convert_to_pdf(first))
             generated.append(logic.convert_to_pdf(second))
+            generated.append(logic.convert_to_pdf(third))
             logic.merge_pdfs(generated, output)
         finally:
             logic.cleanup_temps(generated)
 
-        if not output.exists() or len(PdfReader(str(output)).pages) != 2:
+        if not output.exists() or len(PdfReader(str(output)).pages) != 3:
             raise RuntimeError("Self-test PDF output was not created correctly.")
+
+
+def run_ui_smoke_test():
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    app = QApplication.instance() or QApplication(sys.argv)
+    window = MainWindow()
+
+    temp_root = Path.cwd() / ".tmp"
+    temp_root.mkdir(exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=temp_root) as temp_dir:
+        temp_path = Path(temp_dir)
+        zeta = temp_path / "zeta.webp"
+        alpha = temp_path / "alpha.png"
+
+        from PIL import Image
+
+        Image.new("RGB", (20, 20), (255, 0, 0)).save(zeta)
+        Image.new("RGB", (20, 20), (0, 0, 255)).save(alpha)
+
+        window.file_list.add_files([str(zeta), str(alpha)])
+        window.file_list.refresh_engine_labels()
+
+        if window.file_list.count() != 2:
+            raise RuntimeError("UI smoke test did not add files.")
+        if Path(window.file_list.item(0).data(PATH_ROLE)).name != "alpha.png":
+            raise RuntimeError("UI smoke test did not sort files by name.")
+        if "Pillow" not in window.file_list.item(0).text():
+            raise RuntimeError("UI smoke test did not show the conversion engine.")
+
+        window.file_list.item(0).setSelected(True)
+        window.move_selected_down()
+        if Path(window.file_list.item(1).data(PATH_ROLE)).name != "alpha.png":
+            raise RuntimeError("UI smoke test did not move selected files.")
+
+    window.close()
+    app.quit()
 
 
 class FileListWidget(QListWidget):
@@ -78,6 +106,7 @@ class FileListWidget(QListWidget):
         self.setDragEnabled(True)
         self.setDragDropMode(QListWidget.DragDropMode.InternalMove)
         self.supported_exts = SUPPORTED_EXTS
+        self.logic = None
 
     def dragEnterEvent(self, event: QDragEnterEvent):
         if event.mimeData().hasUrls():
@@ -95,27 +124,47 @@ class FileListWidget(QListWidget):
         if event.mimeData().hasUrls():
             event.setDropAction(Qt.DropAction.CopyAction)
             event.accept()
+            dropped_files = []
             for url in event.mimeData().urls():
                 file_path = url.toLocalFile()
                 if os.path.isfile(file_path):
-                    self.add_file(file_path)
+                    dropped_files.append(file_path)
+            self.add_files(dropped_files)
         else:
             super().dropEvent(event)
+
+    def add_files(self, file_paths):
+        for file_path in sorted(file_paths, key=lambda p: Path(p).name.lower()):
+            self.add_file(file_path)
+        self.sortItems(Qt.SortOrder.AscendingOrder)
 
     def add_file(self, file_path):
         ext = os.path.splitext(file_path)[1].lower()
         if ext in self.supported_exts and not self._contains(file_path):
-            item = QListWidgetItem(str(Path(file_path)))
+            item = QListWidgetItem(self._display_text(file_path))
+            item.setData(PATH_ROLE, str(Path(file_path)))
             item.setToolTip(str(Path(file_path)))
             self.addItem(item)
 
     def _contains(self, file_path):
         normalized = os.path.normcase(os.path.abspath(file_path))
         for i in range(self.count()):
-            current = os.path.normcase(os.path.abspath(self.item(i).text()))
+            current = os.path.normcase(os.path.abspath(self.item(i).data(PATH_ROLE)))
             if current == normalized:
                 return True
         return False
+
+    def refresh_engine_labels(self):
+        for i in range(self.count()):
+            item = self.item(i)
+            item.setText(self._display_text(item.data(PATH_ROLE)))
+
+    def _display_text(self, file_path):
+        path = Path(file_path)
+        if self.logic is None:
+            return path.name
+        engine = self.logic.engine_for(path)
+        return f"{path.name}    |    {engine.label}"
 
 
 class MainWindow(QMainWindow):
@@ -147,6 +196,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(supported)
 
         self.file_list = FileListWidget()
+        self.file_list.logic = self.logic
         self.file_list.setAlternatingRowColors(True)
         self.file_list.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
         layout.addWidget(self.file_list)
@@ -154,12 +204,18 @@ class MainWindow(QMainWindow):
         btn_layout = QHBoxLayout()
         self.btn_add = QPushButton("Add Files")
         self.btn_add.clicked.connect(self.add_files)
+        self.btn_up = QPushButton("Move Up")
+        self.btn_up.clicked.connect(self.move_selected_up)
+        self.btn_down = QPushButton("Move Down")
+        self.btn_down.clicked.connect(self.move_selected_down)
         self.btn_remove = QPushButton("Remove Selected")
         self.btn_remove.clicked.connect(self.remove_selected)
         self.btn_clear = QPushButton("Clear All")
         self.btn_clear.clicked.connect(self.file_list.clear)
 
         btn_layout.addWidget(self.btn_add)
+        btn_layout.addWidget(self.btn_up)
+        btn_layout.addWidget(self.btn_down)
         btn_layout.addWidget(self.btn_remove)
         btn_layout.addWidget(self.btn_clear)
         layout.addLayout(btn_layout)
@@ -177,16 +233,37 @@ class MainWindow(QMainWindow):
             self,
             "Select files",
             "",
-            "All Supported Files (*.hwp *.hwpx *.doc *.docx *.ppt *.pptx *.jpg *.jpeg *.png *.pdf);;"
+            "All Supported Files (*.hwp *.hwpx *.doc *.docx *.ppt *.pptx *.jpg *.jpeg *.png *.webp *.pdf);;"
             "Documents (*.hwp *.hwpx *.doc *.docx *.ppt *.pptx);;"
-            "Images (*.jpg *.jpeg *.png);;PDF Files (*.pdf)",
+            "Images (*.jpg *.jpeg *.png *.webp);;PDF Files (*.pdf)",
         )
-        for file_path in files:
-            self.file_list.add_file(file_path)
+        self.file_list.add_files(files)
+        self.file_list.refresh_engine_labels()
 
     def remove_selected(self):
         for item in self.file_list.selectedItems():
             self.file_list.takeItem(self.file_list.row(item))
+
+    def move_selected_up(self):
+        rows = sorted({self.file_list.row(item) for item in self.file_list.selectedItems()})
+        for row in rows:
+            if row <= 0:
+                continue
+            item = self.file_list.takeItem(row)
+            self.file_list.insertItem(row - 1, item)
+            item.setSelected(True)
+
+    def move_selected_down(self):
+        rows = sorted(
+            {self.file_list.row(item) for item in self.file_list.selectedItems()},
+            reverse=True,
+        )
+        for row in rows:
+            if row >= self.file_list.count() - 1:
+                continue
+            item = self.file_list.takeItem(row)
+            self.file_list.insertItem(row + 1, item)
+            item.setSelected(True)
 
     def process_files(self):
         count = self.file_list.count()
@@ -205,10 +282,11 @@ class MainWindow(QMainWindow):
 
         temp_pdfs = []
         generated_pdfs = []
+        failures = []
         try:
             self.btn_convert.setEnabled(False)
             for i in range(count):
-                file_path = self.file_list.item(i).text()
+                file_path = self.file_list.item(i).data(PATH_ROLE)
                 ext = os.path.splitext(file_path)[1].lower()
 
                 if ext == ".pdf":
@@ -220,6 +298,11 @@ class MainWindow(QMainWindow):
                     if pdf_path:
                         temp_pdfs.append(pdf_path)
                         generated_pdfs.append(pdf_path)
+                    else:
+                        failures.append(f"{os.path.basename(file_path)}: no output PDF")
+
+            if failures:
+                raise RuntimeError("\n".join(failures))
 
             self.statusBar().showMessage("Merging PDFs...")
             QApplication.processEvents()
@@ -231,7 +314,14 @@ class MainWindow(QMainWindow):
             )
         except Exception as e:
             self.statusBar().showMessage("Failed")
-            QMessageBox.critical(self, "Conversion failed", f"Could not create the PDF:\n{str(e)}")
+            QMessageBox.critical(
+                self,
+                "Conversion failed",
+                "Could not create the PDF.\n\n"
+                "If this involved HWP/HWPX, install Hancom Office for layout-preserving "
+                "conversion. LibreOffice fallback is experimental for those files.\n\n"
+                f"Details:\n{str(e)}",
+            )
         finally:
             self.logic.cleanup_temps(generated_pdfs)
             self.btn_convert.setEnabled(True)
@@ -243,6 +333,9 @@ class MainWindow(QMainWindow):
 if __name__ == "__main__":
     if "--self-test" in sys.argv:
         run_self_test()
+        sys.exit(0)
+    if "--ui-smoke-test" in sys.argv:
+        run_ui_smoke_test()
         sys.exit(0)
 
     app = QApplication(sys.argv)

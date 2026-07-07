@@ -13,22 +13,28 @@ from converter import PDFConverterLogic
 def run_smoke_test(tmp_path):
     first = tmp_path / "first.png"
     second = tmp_path / "second.jpg"
+    third = tmp_path / "third.webp"
     output = tmp_path / "merged.pdf"
 
     Image.new("RGBA", (100, 100), (255, 0, 0, 128)).save(first)
     Image.new("RGB", (100, 100), (0, 0, 255)).save(second)
+    Image.new("RGB", (100, 100), (0, 255, 0)).save(third)
 
     logic = PDFConverterLogic()
     generated = []
     try:
         generated.append(logic.convert_to_pdf(first))
         generated.append(logic.convert_to_pdf(second))
+        generated.append(logic.convert_to_pdf(third))
         logic.merge_pdfs(generated, output)
     finally:
         logic.cleanup_temps(generated)
 
     assert output.exists()
-    assert len(PdfReader(str(output)).pages) == 2
+    assert len(PdfReader(str(output)).pages) == 3
+
+    assert logic.engine_for(third).available
+    assert logic.engine_for(third).name == "Pillow"
 
 
 def test_image_conversion_and_merge(tmp_path):
