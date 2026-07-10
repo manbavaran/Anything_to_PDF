@@ -39,6 +39,14 @@ except ImportError:
     win32com = None
     HAS_WIN32COM = False
 
+try:
+    import rhwp
+
+    HAS_RHWP = True
+except ImportError:
+    rhwp = None
+    HAS_RHWP = False
+
 
 @dataclass(frozen=True)
 class EngineInfo:
@@ -99,6 +107,13 @@ class PDFConverterLogic:
                     "experimental",
                     True,
                     "HWP/HWPX layout is not guaranteed",
+                )
+            if HAS_RHWP:
+                return EngineInfo(
+                    "rhwp",
+                    "experimental fallback",
+                    True,
+                    "Office 없이 렌더링하며 레이아웃 차이가 있을 수 있음",
                 )
             return EngineInfo(
                 "HWP 변환 엔진 없음",
@@ -191,9 +206,18 @@ class PDFConverterLogic:
                     f"{exc}"
                 ) from exc
 
+        if HAS_RHWP:
+            try:
+                return self._convert_with_rhwp(input_file, output_pdf)
+            except Exception as exc:
+                raise RuntimeError(
+                    "rhwp HWP/HWPX fallback conversion failed: "
+                    f"{exc}"
+                ) from exc
+
         raise RuntimeError(
             "HWP/HWPX layout-preserving conversion requires Hancom Office. "
-            "Install Hancom Office, or install LibreOffice for an experimental fallback."
+            "Install Hancom Office, LibreOffice, or rhwp-python for an experimental fallback."
         )
 
     def _make_temp_pdf_path(self, input_file):
@@ -322,6 +346,17 @@ class PDFConverterLogic:
             if output_pdf.exists():
                 output_pdf.unlink()
             generated.replace(output_pdf)
+        return str(output_pdf)
+
+    def _convert_with_rhwp(self, input_file, output_pdf):
+        """Render HWP/HWPX directly to PDF without Office applications."""
+        if not HAS_RHWP:
+            raise RuntimeError("rhwp-python is not installed.")
+
+        document = rhwp.parse(str(Path(input_file).resolve()))
+        document.export_pdf(str(Path(output_pdf).resolve()))
+        if not Path(output_pdf).exists() or Path(output_pdf).stat().st_size == 0:
+            raise RuntimeError("rhwp did not create a PDF output.")
         return str(output_pdf)
 
     def _find_soffice(self):

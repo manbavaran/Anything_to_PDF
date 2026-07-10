@@ -17,3 +17,4 @@ dist/
 *_temp.pdf
 .tmp/
 .anything_to_pdf_tmp/
+results/

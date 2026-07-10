@@ -93,6 +93,7 @@ build\AnythingToPDF\AnythingToPDF.exe
 - PNG/JPG/JPEG/WEBP image conversion and PDF merging are fully local and do not require Office apps.
 - HWP/HWPX high-fidelity conversion requires Hancom Office.
 - HWP/HWPX conversion without Hancom uses LibreOffice only as an experimental fallback, when available. Layout, tables, images, fonts, and page breaks are not guaranteed.
+- If Hancom Office and LibreOffice are both unavailable, `rhwp-python` provides an additional experimental HWP/HWPX-to-PDF rendering fallback. It is intended for best-effort output and may differ on complex tables, fonts, and page layout.
 - DOC/DOCX/PPT/PPTX conversion prefers Microsoft Office and falls back to LibreOffice when Office is unavailable.
 - Existing PDFs are merged directly without conversion.
 
@@ -102,5 +103,6 @@ Optional external converters are detected at runtime:
 - Microsoft PowerPoint: high-fidelity PPT/PPTX export.
 - Hancom Office: high-fidelity HWP/HWPX export.
 - LibreOffice: fallback DOC/DOCX/PPT/PPTX export, experimental HWP/HWPX export.
+- rhwp: no-Office HWP/HWPX rendering fallback, installed from `rhwp-python`.
 
 If none of the required external converters are installed, the GUI marks that file's engine as unavailable instead of silently producing a low-quality PDF.
