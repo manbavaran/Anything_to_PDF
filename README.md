@@ -1,6 +1,22 @@
-# Anything to PDF Converter & Merger
+# Anything to PDF 변환 및 병합
 
-Anything to PDF Converter & Merger is a Windows GUI app for converting supported files to PDF and merging them into one output file.
+지원 파일을 PDF로 변환하고 하나의 PDF로 병합하는 Windows GUI 프로그램입니다. 기본 UI는 한국어로 제공됩니다.
+
+## 인수인계 요약
+
+- 저장소: `https://github.com/manbavaran/Anything_to_PDF`
+- 실행 파일: `dist/AnythingToPDF.exe`
+- 진입점: `main.py`
+- 핵심 로직: `converter.py`
+- 테스트: `tests/smoke_test.py`, `tests/verify_exe.ps1`
+- Python: Windows Python 3.11 이상 권장
+
+### 현재 상태
+
+- 이미지(PNG/JPG/JPEG/WEBP) 변환 및 PDF 병합 검증 완료
+- 한국어 UI 및 오류 메시지 적용 완료
+- PyInstaller 단일 EXE 빌드 및 EXE self-test 통과
+- HWP/HWPX, DOC/DOCX, PPT/PPTX는 설치된 Office 프로그램에 따라 변환 엔진이 선택됨
 
 ## Supported files
 
@@ -18,7 +34,7 @@ Anything to PDF Converter & Merger is a Windows GUI app for converting supported
 - Clean up temporary conversion files automatically
 - Clear status and error messages in the GUI
 
-## Run from source
+## 소스에서 실행
 
 Tested on Windows with Python 3.11.
 
@@ -35,7 +51,7 @@ pip install -r requirements.txt
 python main.py
 ```
 
-## Verify
+## 테스트 및 검증
 
 Run the smoke tests before building on a new PC:
 
@@ -43,9 +59,10 @@ Run the smoke tests before building on a new PC:
 .venv\Scripts\python tests\smoke_test.py
 .venv\Scripts\python main.py --self-test
 .venv\Scripts\python main.py --ui-smoke-test
+powershell -ExecutionPolicy Bypass -File tests\verify_exe.ps1
 ```
 
-## Build a Windows EXE
+## Windows 단일 EXE 빌드
 
 For a single-file executable, use PyInstaller:
 
@@ -71,7 +88,7 @@ The built app is created under `build/AnythingToPDF/`. Run:
 build\AnythingToPDF\AnythingToPDF.exe
 ```
 
-## Conversion requirements
+## 변환 요구사항
 
 - PNG/JPG/JPEG/WEBP image conversion and PDF merging are fully local and do not require Office apps.
 - HWP/HWPX high-fidelity conversion requires Hancom Office.

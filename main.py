@@ -23,12 +23,12 @@ from PyQt6.QtWidgets import (
 from converter import PDFConverterLogic, SUPPORTED_EXTS
 
 
-APP_TITLE = "Anything to PDF Converter & Merger"
+APP_TITLE = "Anything to PDF 변환 및 병합"
 INSTRUCTIONS = (
-    "Drag files here or click Add Files.\n"
-    "Files are sorted by name first. Drag or use Move Up/Down to set the final PDF order."
+    "파일을 여기에 끌어 놓거나 '파일 추가'를 클릭하세요.\n"
+    "파일은 이름순으로 정렬되며, 드래그 또는 위/아래 이동 버튼으로 PDF 순서를 정할 수 있습니다."
 )
-SUPPORTED_LABEL = "Supported: PDF, PNG, JPG, JPEG, WEBP, HWP, HWPX, DOC, DOCX, PPT, PPTX"
+SUPPORTED_LABEL = "지원 형식: PDF, PNG, JPG, JPEG, WEBP, HWP, HWPX, DOC, DOCX, PPT, PPTX"
 PATH_ROLE = Qt.ItemDataRole.UserRole
 
 
@@ -174,7 +174,7 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(600, 400)
         self.logic = PDFConverterLogic()
         self.setStatusBar(QStatusBar())
-        self.statusBar().showMessage("Ready")
+        self.statusBar().showMessage("준비됨")
 
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -202,15 +202,15 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.file_list)
 
         btn_layout = QHBoxLayout()
-        self.btn_add = QPushButton("Add Files")
+        self.btn_add = QPushButton("파일 추가")
         self.btn_add.clicked.connect(self.add_files)
-        self.btn_up = QPushButton("Move Up")
+        self.btn_up = QPushButton("위로 이동")
         self.btn_up.clicked.connect(self.move_selected_up)
-        self.btn_down = QPushButton("Move Down")
+        self.btn_down = QPushButton("아래로 이동")
         self.btn_down.clicked.connect(self.move_selected_down)
-        self.btn_remove = QPushButton("Remove Selected")
+        self.btn_remove = QPushButton("선택 항목 삭제")
         self.btn_remove.clicked.connect(self.remove_selected)
-        self.btn_clear = QPushButton("Clear All")
+        self.btn_clear = QPushButton("모두 지우기")
         self.btn_clear.clicked.connect(self.file_list.clear)
 
         btn_layout.addWidget(self.btn_add)
@@ -220,7 +220,7 @@ class MainWindow(QMainWindow):
         btn_layout.addWidget(self.btn_clear)
         layout.addLayout(btn_layout)
 
-        self.btn_convert = QPushButton("Create Merged PDF")
+        self.btn_convert = QPushButton("PDF 만들기")
         self.btn_convert.setStyleSheet(
             "background-color: #2563eb; color: white; font-weight: bold; height: 42px;"
             "border-radius: 4px;"
@@ -231,7 +231,7 @@ class MainWindow(QMainWindow):
     def add_files(self):
         files, _ = QFileDialog.getOpenFileNames(
             self,
-            "Select files",
+            "파일 선택",
             "",
             "All Supported Files (*.hwp *.hwpx *.doc *.docx *.ppt *.pptx *.jpg *.jpeg *.png *.webp *.pdf);;"
             "Documents (*.hwp *.hwpx *.doc *.docx *.ppt *.pptx);;"
@@ -268,11 +268,11 @@ class MainWindow(QMainWindow):
     def process_files(self):
         count = self.file_list.count()
         if count == 0:
-            QMessageBox.warning(self, "No files", "Add at least one file before creating a PDF.")
+            QMessageBox.warning(self, "파일 없음", "PDF를 만들기 전에 파일을 하나 이상 추가하세요.")
             return
 
         save_path, _ = QFileDialog.getSaveFileName(
-            self, "Save merged PDF", "", "PDF Files (*.pdf)"
+            self, "병합된 PDF 저장", "", "PDF 파일 (*.pdf)"
         )
         if not save_path:
             return
@@ -292,7 +292,7 @@ class MainWindow(QMainWindow):
                 if ext == ".pdf":
                     temp_pdfs.append(file_path)
                 else:
-                    self.statusBar().showMessage(f"Converting {os.path.basename(file_path)}...")
+                    self.statusBar().showMessage(f"변환 중: {os.path.basename(file_path)}...")
                     QApplication.processEvents()
                     pdf_path = self.logic.convert_to_pdf(file_path)
                     if pdf_path:
@@ -304,30 +304,30 @@ class MainWindow(QMainWindow):
             if failures:
                 raise RuntimeError("\n".join(failures))
 
-            self.statusBar().showMessage("Merging PDFs...")
+            self.statusBar().showMessage("PDF 병합 중...")
             QApplication.processEvents()
             self.logic.merge_pdfs(temp_pdfs, save_path)
 
-            self.statusBar().showMessage("Done")
+            self.statusBar().showMessage("완료")
             QMessageBox.information(
-                self, "PDF created", f"The merged PDF was created successfully.\n{save_path}"
+                self, "PDF 생성 완료", f"병합된 PDF를 성공적으로 만들었습니다.\n{save_path}"
             )
         except Exception as e:
-            self.statusBar().showMessage("Failed")
+            self.statusBar().showMessage("실패")
             QMessageBox.critical(
                 self,
-                "Conversion failed",
-                "Could not create the PDF.\n\n"
-                "If this involved HWP/HWPX, install Hancom Office for layout-preserving "
-                "conversion. LibreOffice fallback is experimental for those files.\n\n"
-                f"Details:\n{str(e)}",
+                "변환 실패",
+                "PDF를 만들 수 없습니다.\n\n"
+                "HWP/HWPX 파일이라면 한컴오피스를 설치해야 원본 레이아웃을 유지할 수 있습니다. "
+                "LibreOffice 대체 변환은 실험적 기능입니다.\n\n"
+                f"상세 내용:\n{str(e)}",
             )
         finally:
             self.logic.cleanup_temps(generated_pdfs)
             self.btn_convert.setEnabled(True)
             self.label.setText(INSTRUCTIONS)
-            if self.statusBar().currentMessage() != "Done":
-                self.statusBar().showMessage("Ready")
+            if self.statusBar().currentMessage() != "완료":
+                self.statusBar().showMessage("준비됨")
 
 
 if __name__ == "__main__":

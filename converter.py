@@ -67,21 +67,21 @@ class PDFConverterLogic:
         ext = input_file.suffix.lower()
 
         if ext in PDF_EXTS:
-            return EngineInfo("PDF merge", "original", True, "no conversion")
+            return EngineInfo("PDF 직접 병합", "원본", True, "변환 없음")
         if ext in IMAGE_EXTS:
-            return EngineInfo("Pillow", "stable", True, "one image per page")
+            return EngineInfo("Pillow", "안정적", True, "이미지 1개당 1페이지")
         if ext in OFFICE_EXTS:
             if ext in {".doc", ".docx"} and self._has_word():
                 return EngineInfo("Microsoft Word", "high fidelity", True)
             if ext in {".ppt", ".pptx"} and self._has_powerpoint():
                 return EngineInfo("Microsoft PowerPoint", "high fidelity", True)
             if self._soffice_path:
-                return EngineInfo("LibreOffice", "fallback", True, "layout may differ")
+                return EngineInfo("LibreOffice", "대체 변환", True, "레이아웃이 달라질 수 있음")
             return EngineInfo(
-                "No Office engine",
-                "unavailable",
+                "Office 변환 엔진 없음",
+                "사용 불가",
                 False,
-                "install Microsoft Office or LibreOffice",
+                "Microsoft Office 또는 LibreOffice를 설치하세요",
             )
         if ext in HWP_EXTS:
             if self._has_hancom_hwp():
@@ -101,12 +101,12 @@ class PDFConverterLogic:
                     "HWP/HWPX layout is not guaranteed",
                 )
             return EngineInfo(
-                "No HWP engine",
-                "unavailable",
+                "HWP 변환 엔진 없음",
+                "사용 불가",
                 False,
                 "layout-preserving HWP/HWPX conversion needs Hancom",
             )
-        return EngineInfo("Unsupported", "unavailable", False)
+        return EngineInfo("지원하지 않는 형식", "사용 불가", False)
 
     def convert_to_pdf(self, input_path):
         """Convert a single file to PDF and return the generated PDF path."""
